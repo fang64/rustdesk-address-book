@@ -10,9 +10,9 @@ use crate::state::AppState;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/ab", get(get_ab_legacy).post(update_ab_legacy))
-        .route("/api/ab/personal", get(get_personal))
-        .route("/api/ab/shared/profiles", get(get_shared_profiles))
-        .route("/api/ab/settings", get(get_ab_settings))
+        .route("/api/ab/personal", get(get_personal).post(post_personal))
+        .route("/api/ab/shared/profiles", get(get_shared_profiles).post(get_shared_profiles))
+        .route("/api/ab/settings", get(get_ab_settings).post(get_ab_settings))
 }
 
 /// Ensure the user has a personal address book, creating one if needed.
@@ -60,6 +60,16 @@ async fn get_personal(
             note: String::new(),
         },
     }))
+}
+
+// RustDesk 1.5.0 reads the GUID from the top level of the POST response.
+// Keep the GET response for the web application.
+async fn post_personal(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+) -> Result<Json<Value>, ApiError> {
+    let guid = ensure_personal_ab(&state.db, claims.user_id, &claims.sub).await?;
+    Ok(Json(json!({ "guid": guid })))
 }
 
 /// GET /api/ab — legacy endpoint, returns the entire address book as a JSON string.

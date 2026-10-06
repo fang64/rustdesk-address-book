@@ -14,6 +14,13 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/groups", get(list_groups).post(create_group))
         .route("/api/groups/{id}", put(update_group).delete(delete_group))
+        .route("/api/device-group/accessible", get(empty_client_device_groups))
+}
+
+// Community hbbs does not have device groups. Return the paginated JSON shape
+// expected by RustDesk instead of falling through to the web app's HTML page.
+async fn empty_client_device_groups(AuthUser(_claims): AuthUser) -> Json<Value> {
+    Json(json!({ "data": [], "total": 0 }))
 }
 
 fn require_admin(claims: &crate::auth::jwt::Claims) -> Result<(), ApiError> {

@@ -13,7 +13,7 @@ use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/api/ab/tags/{guid}", get(get_tags))
+        .route("/api/ab/tags/{guid}", get(get_tags).post(post_tags))
         .route("/api/ab/tag/add/{guid}", post(add_tag))
         .route("/api/ab/tag/rename/{guid}", put(rename_tag))
         .route("/api/ab/tag/update/{guid}", put(update_tag_color))
@@ -44,6 +44,27 @@ async fn get_tags(
         .collect();
 
     Ok(Json(TagsResponse { data, total }))
+}
+
+// RustDesk 1.5.0 expects an array from POST, while the web app uses the
+// paginated GET response.
+async fn post_tags(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+    Path(guid): Path<String>,
+) -> Result<Json<Vec<TagPayload>>, ApiError> {
+    let guid = resolve_ab_guid(&state.db, claims.user_id, &guid).await?;
+    let tags = sqlx::query_as::<_, Tag>(
+        "SELECT * FROM tags WHERE ab_guid = ? ORDER BY name",
+    )
+    .bind(&guid)
+    .fetch_all(&state.db)
+    .await?;
+    let data = tags.into_iter().map(|t| TagPayload {
+        name: t.name,
+        color: t.color,
+    }).collect();
+    Ok(Json(data))
 }
 
 async fn add_tag(
