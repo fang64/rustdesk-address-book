@@ -11,8 +11,15 @@ use crate::state::AppState;
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/api/login", post(login))
+        .route("/api/login-options", get(login_options))
         .route("/api/logout", post(logout))
-        .route("/api/currentUser", get(current_user))
+        .route("/api/currentUser", get(current_user).post(current_user))
+}
+
+// The RustDesk client queries this before displaying its login dialog.
+// This server offers local accounts only, so there are no OIDC options.
+async fn login_options() -> Json<Vec<String>> {
+    Json(Vec::new())
 }
 
 async fn login(
